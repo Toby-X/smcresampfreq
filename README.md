@@ -5,9 +5,13 @@ Aiming to find the effect of resampling frequency on Sequential Monte Carlo (SMC
 ## Gaussian Mixture Model
 
 Bayesian estimation of gaussian mixture's parameters.
+
+
 $$
 f = \sum_{i=1}^r \omega_iN(\mu_i,\lambda_i^{-1})
 $$
+
+
 Now using the data from a $r=2$ gaussian mixture with weakly informative priors similar with Richardson and Green. 1997 and update $\omega_i,\mu_i,\lambda_i$ respectively with, 
 
 1. update $\omega_i$ with additive normal random walk on logit scale, in our code $N(0,0.1^2)$
