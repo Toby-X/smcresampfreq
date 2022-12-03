@@ -1,6 +1,5 @@
 #-*- coding:utf-8 -*-
 # change into .25 variance proposal for every random walk
-path1 = "E:/学习资料/Stat/Computing/dataset/mixture.dat"
 mixture.dat = read.table(path1,header=TRUE)
 y = mixture.dat$y
 
@@ -234,5 +233,4 @@ mean(lambda_all)
 mean(rowSums(ac.lambda))/2
 
 ##但是其实还有一种可能就是Resampling做太多了，导致了最后一直有degeneracy
-save.image("E:/学习资料/Stat/.RData")
-load("E:/学习资料/Stat/.RData")
+
