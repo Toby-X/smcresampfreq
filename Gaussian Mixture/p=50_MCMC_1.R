@@ -1,8 +1,9 @@
 #-*- coding:utf-8 -*-
 # change into .1 variance proposal for every random walk
-path1 = "E:/学习资料/Stat/Computing/dataset/mixture.dat"
+path1 = "mixture.dat"
 mixture.dat = read.table(path1,header=TRUE)
 y = mixture.dat$y
+
 
 ## libraries
 library(Boom)
@@ -12,7 +13,7 @@ library(tcltk)
 n = 500#number of particles
 p = 50#number of distributions to sample from using smc
 m = 1e3#number of repetitive experiments
-threshold = seq(0.1,1,length=10)
+threshold = seq(0.4,1,length=7)
 mu = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))# the first layer is mu1, the second layer is mu2, the same is as follows
 lambda = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
 omega = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
@@ -37,7 +38,7 @@ delta = 1
 ## lambda via multiplicative log-normal random-walk
 ## omega via additive normal random-walk
 log.likelihood <- function(mu,lambda,omega){
-  sum(log(omega[1]*dnorm(y,mu[1],lambda^(-1/2))+omega[2]*dnorm(y,mu[2],lambda^(-1/2))))
+  sum(log(omega[1]*dnorm(y,mu[1],lambda[1]^(-1/2))+omega[2]*dnorm(y,mu[2],lambda[2]^(-1/2))))
 }
 
 ## using one iteration of MH kernel
@@ -122,10 +123,10 @@ for (i in 1:n){
 ## estimate weights for step 1
 w_u = rep(1,n)
 for (i in 1:n) {
-  w_u[i] = exp(log.fn(1,mu[i,1,],lambda[i,1,],omega[i,1,]))/prod(dnorm(mu[i,1,],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,],alpha,beta))/ddirichlet(omega[i,1,],c(delta,delta))
+  w_u[i] = exp(log.fn(1,mu[i,1,,j],lambda[i,1,,j],omega[i,1,,j]))/prod(dnorm(mu[i,1,,j],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,,j],alpha,beta))/ddirichlet(omega[i,1,,j],c(delta,delta))
 }
 w_n = w_u/sum(w_u)
-if (1/sum(w_n^2) < threshold[j]){
+if (1/sum(w_n^2) < n){
   idx = sample(1:n,n,replace=T,prob=w_n)
   lambda = lambda[idx,,,]
   mu = mu[idx,,,]
@@ -211,9 +212,9 @@ omega7 = c(omega[!idx1,50,1,j],omega[!idx2,50,2,j])
 
 lambda_all = c(lambda[,50,1,j],lambda[,50,2,j])
 
-mse.mu[j] += (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
-mse.omega[j] += (mean(omega10)-0.3)^2+var(omega10)
-mse.lambda[j] += (mean(lambda_all)-4)^2+var(lambda_all)
+mse.mu[j] = mse.mu[j] + (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
+mse.omega[j] = mse.omega[j] +  (mean(omega10)-0.3)^2+var(omega10)
+mse.lambda[j] = mse.lambda[j] + (mean(lambda_all)-4)^2+var(lambda_all)
 }
 }
 info <- sprintf("已完成 %d%%", round(i*100/p))
@@ -223,3 +224,7 @@ close(pb)
 mse.mu = mse.mu/m
 mse.lambda = mse.lambda/m
 mse.omega = mse.omega/m
+
+write.csv(mse.mu,"p50MCMC1mu_mse.csv")
+write.csv(mse.lambda,"p50MCMC1lambda_mse.csv")
+write.csv(mse.omega,"p50MCMC1omega_mse.csv")
