@@ -1,14 +1,12 @@
 #-*- coding:utf-8 -*-
 # change into .1 variance proposal for every random walk
-path1 = "mixture.dat"
+path1 = "/public1/home/scf0347/ResampFreq/GaussianMixture/mixture.dat"
 mixture.dat = read.table(path1,header=TRUE)
 y = mixture.dat$y
 
 
 ## libraries
 library(Boom)
-library(tcltk)
-
 ## Given Value
 n = 500#number of particles
 p = 50#number of distributions to sample from using smc
@@ -18,9 +16,9 @@ mu = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))# the first
 lambda = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
 omega = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
 wu = rep(1,n)
-mse.mu = rep(0,length(threshold))
-mse.lambda = rep(0,length(threshold))
-mse.omega = rep(0,length(threshold))
+mse.mu = array(rep(0,m*length(threshold)),c(m,length(threshold)))
+mse.lambda = array(rep(0,m*length(threshold)),c(m,length(threshold)))
+mse.omega = array(rep(0,m*length(threshold)),c(m,length(threshold)))
 
 
 # prior choices from Richardson and Green P735
@@ -38,7 +36,7 @@ delta = 1
 ## lambda via multiplicative log-normal random-walk
 ## omega via additive normal random-walk
 log.likelihood <- function(mu,lambda,omega){
-  sum(log(omega[1]*dnorm(y,mu[1],lambda[1]^(-1/2))+omega[2]*dnorm(y,mu[2],lambda[2]^(-1/2))))
+  sum(log(omega[1]*dnorm(y,mu[1],lambda^(-1/2))+omega[2]*dnorm(y,mu[2],lambda^(-1/2))))
 }
 
 ## using one iteration of MH kernel
@@ -109,10 +107,10 @@ Kn <- function(mu,lambda,omega,mut,lambdat,omegat){
 
 ## Using suboptimal backward kernels
 ## extract the first sample
-pb <- tkProgressBar("进度","已完成 %",0,100)
 
 for (l in 1:m) {
 for (j in 1:length(threshold)) {
+set.seed(l)
 
 for (i in 1:n){
   mu[i,1,,j] = rnorm(2,kexi,K^(-1/2))
@@ -146,6 +144,15 @@ ac.omega = array(rep(0,n*p),c(n,p))
 
 w_u.tmp = rep(1,n)
 for (i in 2:p){
+  if (any(is.na(w_n))){
+    lambda[,,1,j] = 9999
+    lambda[,,2,j] = 0
+    omega[,,1,j] = 1
+    omega[,,2,j] = 0
+    mu[,,1,j] = 9999
+    mu[,,2,j] = 0
+    break
+  }
   ## MCMC Move
   mu.update = array(rnorm(n*2,0,.1),c(n,2))
   mu.tmp = mu[,i-1,,j]+mu.update
@@ -194,6 +201,15 @@ for (i in 2:p){
   w_u = w_n*w_u.tmp
   w_n = w_u/sum(w_u)
   ## Resampling
+  if (any(is.na(w_n))){
+    lambda[,,1,j] = 9999
+    lambda[,,2,j] = 0
+    omega[,,1,j] = 1
+    omega[,,2,j] = 0
+    mu[,,1,j] = 9999
+    mu[,,2,j] = 0
+    break
+  }
   if (1/sum(w_n^2)<threshold[j]){
     idx = sample(1:n,n,replace=T,prob=w_n)
     lambda = lambda[idx,,,]
@@ -212,19 +228,17 @@ omega7 = c(omega[!idx1,50,1,j],omega[!idx2,50,2,j])
 
 lambda_all = c(lambda[,50,1,j],lambda[,50,2,j])
 
-mse.mu[j] = mse.mu[j] + (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
-mse.omega[j] = mse.omega[j] +  (mean(omega10)-0.3)^2+var(omega10)
-mse.lambda[j] = mse.lambda[j] + (mean(lambda_all)-4)^2+var(lambda_all)
+mse.mu[l,j] = mse.mu[l,j] + (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
+mse.omega[l,j] = mse.omega[l,j] +  (mean(omega10)-0.3)^2+var(omega10)
+mse.lambda[l,j] = mse.lambda[l,j] + (mean(lambda_all)-4)^2+var(lambda_all)
 }
+  mse.mu = mse.mu/n
+  mse.lambda = mse.lambda/n
+  mse.omega = mse.omega/n
 }
-info <- sprintf("已完成 %d%%", round(i*100/p))
-setTkProgressBar(pb,i*100/p,sprintf("进度 (%s)",info),info)
-close(pb)
 
-mse.mu = mse.mu/m
-mse.lambda = mse.lambda/m
-mse.omega = mse.omega/m
+#mse.mu = mse.mu/m
+#mse.lambda = mse.lambda/m
+#mse.omega = mse.omega/m
 
-write.csv(mse.mu,"p50MCMC1mu_mse.csv")
-write.csv(mse.lambda,"p50MCMC1lambda_mse.csv")
-write.csv(mse.omega,"p50MCMC1omega_mse.csv")
+save.image("p50MCMC1.RData")

@@ -1,11 +1,12 @@
 #-*- coding:utf-8 -*-
 # change into .25 variance proposal for every random walk
+path1 = "/public1/home/scf0347/ResampFreq/GaussianMixture/mixture.dat"
 mixture.dat = read.table(path1,header=TRUE)
 y = mixture.dat$y
 
 ## libraries
 library(Boom)
-library(tcltk)
+
 
 ## Given Value
 n = 500
@@ -134,7 +135,6 @@ ac.omega = array(rep(0,n*p),c(n,p))
 ##但是lambda的是不一样的
 
 ## MAIN LOOP
-pb <- tkProgressBar("进度","已完成 %",0,100)
 star_time <- Sys.time()
 w_u.tmp = rep(1,n)
 for (i in 2:p){
@@ -196,41 +196,41 @@ for (i in 2:p){
     omega = omega[idx,,]
     w_n = rep(1/n,n)
   }
-  info <- sprintf("已完成 %d%%", round(i*100/p))
-  setTkProgressBar(pb,i*100/p,sprintf("进度 (%s)",info),info)
+  sprintf("已完成 %d%%", round(i*100/p))
 }
 
 end_time <- Sys.time()
-close(pb)
-end_time-star_time
+total_time = end_time-star_time
 
 idx1 = mu[,50,1]>8
 idx2 = mu[,50,2]>8
 mu10 = c(mu[idx1,50,1],mu[idx2,50,2])
 mu7 = c(mu[!idx1,50,1],mu[!idx2,50,2])
-str(mu7)
-str(mu10)
+#str(mu7)
+#str(mu10)
 hist(mu7)
 hist(mu10)
-mean(mu7)
-mean(mu10)
+#mean(mu7)
+#mean(mu10)
 ##稍微好一点点，但是还是应该看看acceptance rate再做结论
-mean(rowSums(ac.mu))
+#mean(rowSums(ac.mu))
 
 omega10 = c(omega[idx1,50,1],omega[idx2,50,2])
 omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
 hist(omega10)
 hist(omega7)
-omega_all = c(omega10,omega7)
-hist(omega_all)
-mean(omega10)
-mean(omega7)
-mean(rowSums(ac.omega))
+#omega_all = c(omega10,omega7)
+#hist(omega_all)
+#mean(omega10)
+#mean(omega7)
+#mean(rowSums(ac.omega))
 
 lambda_all = c(lambda[,50,1],lambda[,50,2])
 hist(lambda_all)
 mean(lambda_all)
-mean(rowSums(ac.lambda))/2
+
+#mean(lambda_all)
+#mean(rowSums(ac.lambda))/2
 
 ##但是其实还有一种可能就是Resampling做太多了，导致了最后一直有degeneracy
-
+save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/Base/Base.RData")
