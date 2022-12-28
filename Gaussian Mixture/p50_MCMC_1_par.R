@@ -17,14 +17,6 @@ n = 500#number of particles
 p = 50#number of distributions to sample from using smc
 m = 200#number of repetitive experiments
 threshold = seq(0.4,1,length=7)
-mu = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold),m))# the first layer is mu1, the second layer is mu2, the same is as follows
-lambda = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold),m))
-omega = array(rep(0,n*p*2*length(threshold)*m),c(n,p,2,length(threshold),m))
-wu = matrix(rep(1,n*m),c(n,m))
-mse.mu = array(rep(0,m*length(threshold)),c(m,length(threshold)))
-mse.lambda = array(rep(0,m*length(threshold)),c(m,length(threshold)))
-mse.omega = array(rep(0,m*length(threshold)),c(m,length(threshold)))
-
 
 # prior choices from Richardson and Green P735
 kexi = mean(y)
@@ -110,159 +102,146 @@ Kn <- function(mu,lambda,omega,mut,lambdat,omegat){
   return(res)
 }
 
-## Using suboptimal backward kernels
-## extract the first sample
-
-# change for parallel settings
-w_u = matrix(rep(1,n*m),nrow=n)
-w_n = matrix(rep(1,n*m),nrow=n)
-idx = matrix(rep(0,n*m),nrow=n)
-w_u.tmp = matrix(rep(1,n*m),nrow=n)
-
-mu.update = array(rep(0,n*2*m),c(n,2,m))
-mu.tmp = mu.update
-lambda.update = array(rep(0,n*2*m),c(n,2,m))
-lambda.tmp = lambda.update
-u.update = array(rep(0,n*m),c(n,m))
-u.tmp = u.update
-omega.tmp = array(rep(0,n*m*2),c(n,2,m))
-
-acrate.mu = rep(0,m)
-acrate.lambda1 = rep(0,m)
-acrate.lambda2 = rep(0,m)
-acrate.omega = rep(0,m)
-rand = rep(0,m)
-divident = rep(0,m)
-
-idx1 = array(rep(0,n*m),c(n,m))
-idx2 = array(rep(0,n*m),c(n,m))
-mu10 = array(rep(0,n*m),c(n,m))
-mu7 = array(rep(0,n*m),c(n,m))
-omega10 = array(rep(0,n*m),c(n,m))
-omega7 = array(rep(0,n*m),c(n,m))
-lambda_all = array(rep(0,2*n*m),c(2*n,m))
-
-foreach (l = 1:m) %do% {
-for (j in 1:length(threshold)) {
-set.seed(l)
-
-for (i in 1:n){
-  mu[i,1,,j,l] = rnorm(2,kexi,K^(-1/2))
-  lambda[i,1,,j,l] = rgamma(2,alpha,beta)
-  omega[i,1,,j,l] = rdirichlet(1,c(delta,delta))
-}
-
-## estimate weights for step 1
-for (i in 1:n) {
-  w_u[i,l] = exp(log.fn(1,mu[i,1,,j,l],lambda[i,1,,j,l],omega[i,1,,j,l]))/prod(dnorm(mu[i,1,,j,l],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,,j,l],alpha,beta))/ddirichlet(omega[i,1,,j,l],c(delta,delta))
-}
-w_n[,l] = w_u[,l]/sum(w_u[,l])
-if (1/sum(w_n^2) < n){
-  idx[,l] = sample(1:n,n,replace=T,prob=w_n)
-  lambda[,,,,l] = lambda[idx,,,,l]
-  mu[,,,,l] = mu[idx,,,,l]
-  omega[,,,,l] = omega[idx,,,,l]
-  w_n[,l] = rep(1/n,n)
-}
-
-## MAIN LOOP
-for (i in 2:p){
-  if (any(is.na(w_n[,l]))){
-    lambda[,,1,j,l] = 9999
-    lambda[,,2,j,l] = 0
-    omega[,,1,j,l] = 1
-    omega[,,2,j,l] = 0
-    mu[,,1,j,l] = 9999
-    mu[,,2,j,l] = 0
-    break
+doit <- function(){
+  mu = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))# the first layer is mu1, the second layer is mu2, the same is as follows
+  lambda = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
+  omega = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
+  mse.mu = rep(0,length(threshold))
+  mse.omega = rep(0,length(threshold))
+  mse.omega = rep(0,length(threshold))
+  w_u = rep(0,n)
+  w_u.tmp = rep(0,n)
+  for (j in 1:length(threshold)) {
+    for (i in 1:n){
+      mu[i,1,,j] = rnorm(2,kexi,K^(-1/2))
+      lambda[i,1,,j] = rgamma(2,alpha,beta)
+      omega[i,1,,j] = rdirichlet(1,c(delta,delta))
+    }
+    
+    ## estimate weights for step 1
+    for (i in 1:n) {
+      w_u[i] = exp(log.fn(1,mu[i,1,,j],lambda[i,1,,j],omega[i,1,,j]))/prod(dnorm(mu[i,1,,j],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,,j],alpha,beta))/ddirichlet(omega[i,1,,j],c(delta,delta))
+    }
+    w_n = w_u/sum(w_u)
+    if (1/sum(w_n^2) < n){
+      idx = sample(1:n,n,replace=T,prob=w_n)
+      lambda = lambda[idx,,,]
+      mu = mu[idx,,,]
+      omega = omega[idx,,,]
+      w_n = rep(1/n,n)
+    }
+    
+    ## MAIN LOOP
+    for (i in 2:p){
+      if (any(is.na(w_n))){
+        lambda[,,1,j] = 9999
+        lambda[,,2,j] = 0
+        omega[,,1,j] = 1
+        omega[,,2,j] = 0
+        mu[,,1,j] = 9999
+        mu[,,2,j] = 0
+        break
+      }
+      ## MCMC Move
+      mu.update = array(rnorm(n*2,0,.1),c(n,2))
+      mu.tmp = mu[,i-1,,j]+mu.update
+      lambda.update = array(rlnorm(n*2,0,.1),c(n,2))
+      lambda.tmp = lambda[,i-1,,j]*lambda.update
+      u.update = rnorm(n,0,.1)
+      u.tmp = log(omega[,i-1,1,j]/(1-omega[,i-1,1,j]))+u.update
+      omega.tmp = omega[,i-1,,j]
+      omega.tmp[,1] = exp(u.tmp)/(1+exp(u.tmp))
+      omega.tmp[,2] = 1-omega.tmp[,1]
+      # 加个循环把每个样本都MCMC update了
+      ## 这里由于三个一起update所以效益可能会低，要不要查查它update一共多少次
+      for (k in 1:n) {
+        acrate.mu = acceptance.mu(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,,j],lambda[k,i-1,,j],omega[k,i-1,,j])
+        acrate.lambda1 = acceptance.lambda1(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,,j],lambda[k,i-1,,j],omega[k,i-1,,j])
+        acrate.lambda2 = acceptance.lambda2(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,,j],lambda[k,i-1,,j],omega[k,i-1,,j])
+        acrate.omega = acceptance.omega(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,,j],lambda[k,i-1,,j],omega[k,i-1,,j])
+        rand = runif(1)
+        if (is.na(acrate.mu)){
+          mu[k,i,,j] = mu.tmp[k,]
+        }else if (rand<=acrate.mu){
+          mu[k,i,,j] = mu.tmp[k,]
+        }else{
+          mu[k,i,,j] = mu[k,i-1,,j]
+        }
+        if (is.na(acrate.lambda1)){
+          lambda[k,i,1,j] = lambda.tmp[k,1]
+        }else if (rand<=acrate.lambda1){
+          lambda[k,i,1,j] = lambda.tmp[k,1]
+        }else{
+          lambda[k,i,1,j] = lambda[k,i-1,1,j]
+        }
+        if (is.na(acrate.lambda2)){
+          lambda[k,i,2,j] = lambda.tmp[k,2]
+        }else if (rand<=acrate.lambda2){
+          lambda[k,i,2,j] = lambda.tmp[k,2]
+        }else{
+          lambda[k,i,2,j] = lambda[k,i-1,2,j]
+        }
+        if (is.na(acrate.omega)){
+          omega[k,i,,j] = omega.tmp[k,]
+        }else if (rand<=acrate.omega){
+          omega[k,i,,j] = omega.tmp[k,]
+        }else{
+          omega[k,i,,j] = omega[k,i-1,,j]
+        }
+        divident=0
+        for (o in 1:n) {
+          divident = divident + exp(log.fn(i-1,mu[o,i-1,,j],lambda[o,i-1,,j],omega[o,i-1,,j]))*Kn(mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j],mu[o,i-1,,j],lambda[o,i-1,,j],omega[o,i-1,,j])
+        }
+        w_u.tmp[k] = exp(log.fn(i,mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j]))/divident
+      }
+      w_u = w_n*w_u.tmp
+      w_n = w_u/sum(w_u)
+      ## Resampling
+      if (any(is.na(w_n))){
+        lambda[,,1,j] = 9999
+        lambda[,,2,j] = 0
+        omega[,,1,j] = 1
+        omega[,,2,j] = 0
+        mu[,,1,j] = 9999
+        mu[,,2,j] = 0
+        break
+      }
+      if (1/sum(w_n^2)<threshold[j]){
+        idx = sample(1:n,n,replace=T,prob=w_n)
+        lambda = lambda[idx,,,]
+        mu = mu[idx,,,]
+        omega = omega[idx,,,]
+        w_n = rep(1/n,n)
+      }
+    }
+    
+    
+    idx1 = mu[,50,1,j]>8
+    idx2 = mu[,50,2,j]>8
+    mu10 = c(mu[idx1,50,1,j],mu[idx2,50,2,j])
+    mu7 = c(mu[!idx1,50,1,j],mu[!idx2,50,2,j])
+    
+    omega10 = c(omega[idx1,50,1,j],omega[idx2,50,2,j])
+    omega7 = c(omega[!idx1,50,1,j],omega[!idx2,50,2,j])
+    
+    lambda_all = c(lambda[,50,1,j],lambda[,50,2,j])
+    
+    mse.mu[j] = mse.mu[j] + (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
+    mse.omega[j] = mse.omega[j] +  (mean(omega10)-0.3)^2+var(omega10)
+    mse.lambda[j] = mse.lambda[j] + (mean(lambda_all)-4)^2+var(lambda_all)
   }
-  ## MCMC Move
-  mu.update[,,l] = array(rnorm(n*2,0,.1),c(n,2))
-  mu.tmp[,,l] = mu[,i-1,,j,l]+mu.update[,,l]
-  lambda.update[,,l] = array(rlnorm(n*2,0,.1),c(n,2))
-  lambda.tmp[,,l] = lambda[,i-1,,j,l]*lambda.update[,,l]
-  u.update[,l] = rnorm(n,0,.1)
-  u.tmp[,l] = log(omega[,i-1,1,j,l]/(1-omega[,i-1,1,j,l]))+u.update[,l]
-  omega.tmp[,,l] = omega[,i-1,,j,l]
-  omega.tmp[,1,l] = exp(u.tmp[,l])/(1+exp(u.tmp[,l]))
-  omega.tmp[,2,l] = 1-omega.tmp[,1,l]
-  # 加个循环把每个样本都MCMC update了
-  ## 这里由于三个一起update所以效益可能会低，要不要查查它update一共多少次
-  for (k in 1:n) {
-    acrate.mu[l] = acceptance.mu(i,mu.tmp[k,,l],lambda.tmp[k,,l],omega.tmp[k,,l],mu[k,i-1,,j,l],lambda[k,i-1,,j,l],omega[k,i-1,,j,l])
-    acrate.lambda1[l] = acceptance.lambda1(i,mu.tmp[k,,l],lambda.tmp[k,,l],omega.tmp[k,,l],mu[k,i-1,,j,l],lambda[k,i-1,,j,l],omega[k,i-1,,j,l])
-    acrate.lambda2[l] = acceptance.lambda2(i,mu.tmp[k,,l],lambda.tmp[k,,l],omega.tmp[k,,l],mu[k,i-1,,j,l],lambda[k,i-1,,j,l],omega[k,i-1,,j,l])
-    acrate.omega[l] = acceptance.omega(i,mu.tmp[k,,l],lambda.tmp[k,,l],omega.tmp[k,,l],mu[k,i-1,,j,l],lambda[k,i-1,,j,l],omega[k,i-1,,j,l])
-    rand[l] = runif(1)
-    if (rand[l]<=acrate.mu[l]){
-      mu[k,i,,j,l] = mu.tmp[k,,l]
-    }else{
-      mu[k,i,,j,l] = mu[k,i-1,,j,l]
-    }
-    if (rand[l]<=acrate.lambda1[l]){
-      lambda[k,i,1,j,l] = lambda.tmp[k,1,l]
-    }else{
-      lambda[k,i,1,j,l] = lambda[k,i-1,1,j,l]
-    }
-    if (rand[l]<=acrate.lambda2[l]){
-      lambda[k,i,2,j,l] = lambda.tmp[k,2,l]
-    }else{
-      lambda[k,i,2,j,l] = lambda[k,i-1,2,j,l]
-    }
-    if (rand[l]<=acrate.omega[l]){
-      omega[k,i,,j,l] = omega.tmp[k,,l]
-    }else{
-      omega[k,i,,j,l] = omega[k,i-1,,j,l]
-    }
-    for (o in 1:n) {
-      divident[l] = divident[l] + exp(log.fn(i-1,mu[o,i-1,,j,l],lambda[o,i-1,,j,l],omega[o,i-1,,j,l]))*Kn(mu[k,i,,j,l],lambda[k,i,,j,l],omega[k,i,,j,l],mu[o,i-1,,j,l],lambda[o,i-1,,j,l],omega[o,i-1,,j,l])
-    }
-    w_u.tmp[k,l] = exp(log.fn(i,mu[k,i,,j,l],lambda[k,i,,j,l],omega[k,i,,j,l]))/divident[l]
-  }
-  w_u[,l] = w_n[,l]*w_u.tmp[,l]
-  w_n[,l] = w_u[,l]/sum(w_u[,l])
-  ## Resampling
-  if (any(is.na(w_n[,l]))){
-    lambda[,,1,j,l] = 9999
-    lambda[,,2,j,l] = 0
-    omega[,,1,j,l] = 1
-    omega[,,2,j,l] = 0
-    mu[,,1,j,l] = 9999
-    mu[,,2,j,l] = 0
-    break
-  }
-  if (1/sum(w_n[,l]^2)<threshold[j]){
-    idx[,l] = sample(1:n,n,replace=T,prob=w_n[,l])
-    lambda[,,,,l] = lambda[idx,,,,l]
-    mu[,,,,l] = mu[idx,,,,l]
-    omega[,,,,l] = omega[idx,,,,l]
-    w_n[,l] = rep(1/n,n)
-  }
+  mse.mu = mse.mu/n
+  mse.lambda = mse.lambda/n
+  mse.omega = mse.omega/n
+  return(list(mse.mu=mse.mu,mse.lambda=mse.lambda,mse.omega=mse.omega,mean.mu7=mean(mu7),mean.omega10=mean(omega10),mean.lambda=mean(lambda_all)))
 }
 
-
-idx1[,l] = mu[,50,1,j,l]>8
-idx2[,l] = mu[,50,2,j,l]>8
-mu10[,l] = c(mu[idx1,50,1,j,l],mu[idx2,50,2,j,l])
-mu7[,l] = c(mu[!idx1,50,1,j,l],mu[!idx2,50,2,j,l])
-
-omega10[,l] = c(omega[idx1,50,1,j,l],omega[idx2,50,2,j,l])
-omega7[,l] = c(omega[!idx1,50,1,j,l],omega[!idx2,50,2,j,l])
-
-lambda_all[,l] = c(lambda[,50,1,j,l],lambda[,50,2,j,l])
-
-mse.mu[l,j] = mse.mu[l,j] + (mean(mu7[,l])-7)^2+var(mu7[,l])+(mean(mu10[,l])-10)^2+var(mu10[,l])
-mse.omega[l,j] = mse.omega[l,j] +  (mean(omega10[,l])-0.3)^2+var(omega10[,l])
-mse.lambda[l,j] = mse.lambda[l,j] + (mean(lambda_all[,l])-4)^2+var(lambda_all[,l])
+res = foreach (l = 1:m,.combine = rbind,.packages = "Boom") %dopar% {
+  set.seed(l)
+  if (l%%40==0){
+    cat("finish",l%/%40, "loop")
+  }
+  return(doit())
 }
-}
-
-mse.mu = mse.mu/n
-mse.lambda = mse.lambda/n
-mse.omega = mse.omega/n
-
-#mse.mu = mse.mu/m
-#mse.lambda = mse.lambda/m
-#mse.omega = mse.omega/m
 
 save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/p50MCMC1par.RData")
