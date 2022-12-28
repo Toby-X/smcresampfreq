@@ -157,32 +157,32 @@ for (i in 2:p){
     acrate.omega = acceptance.omega(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,],lambda[k,i-1,],omega[k,i-1,])
     rand = runif(1)
     if (is.na(acrate.mu)){
-      mu[k,i,,j] = mu.tmp[k,]
+      mu[k,i,] = mu.tmp[k,]
     }else if (rand<=acrate.mu){
-      mu[k,i,,j] = mu.tmp[k,]
+      mu[k,i,] = mu.tmp[k,]
     }else{
-      mu[k,i,,j] = mu[k,i-1,,j]
+      mu[k,i,] = mu[k,i-1,]
     }
     if (is.na(acrate.lambda1)){
-      lambda[k,i,1,j] = lambda.tmp[k,1]
+      lambda[k,i,1] = lambda.tmp[k,1]
     }else if (rand<=acrate.lambda1){
-      lambda[k,i,1,j] = lambda.tmp[k,1]
+      lambda[k,i,1] = lambda.tmp[k,1]
     }else{
-      lambda[k,i,1,j] = lambda[k,i-1,1,j]
+      lambda[k,i,1] = lambda[k,i-1,1]
     }
     if (is.na(acrate.lambda2)){
-      lambda[k,i,2,j] = lambda.tmp[k,2]
+      lambda[k,i,2] = lambda.tmp[k,2]
     }else if (rand<=acrate.lambda2){
-      lambda[k,i,2,j] = lambda.tmp[k,2]
+      lambda[k,i,2] = lambda.tmp[k,2]
     }else{
-      lambda[k,i,2,j] = lambda[k,i-1,2,j]
+      lambda[k,i,2] = lambda[k,i-1,2]
     }
     if (is.na(acrate.omega)){
-      omega[k,i,,j] = omega.tmp[k,]
+      omega[k,i,] = omega.tmp[k,]
     }else if (rand<=acrate.omega){
-      omega[k,i,,j] = omega.tmp[k,]
+      omega[k,i,] = omega.tmp[k,]
     }else{
-      omega[k,i,,j] = omega[k,i-1,,j]
+      omega[k,i,] = omega[k,i-1,]
     }
     divident = 0
     for (j in 1:n) {
@@ -192,6 +192,15 @@ for (i in 2:p){
   }
   w_u = w_n*w_u.tmp
   w_n = w_u/sum(w_u)
+  if (any(is.na(w_n))){
+    lambda[,,1] = 9999
+    lambda[,,2] = 0
+    omega[,,1] = 1
+    omega[,,2] = 0
+    mu[,,1] = 9999
+    mu[,,2] = 0
+    break
+  }
   ## Resampling
   if (1/sum(w_n^2)<threshold){
     idx = sample(1:n,n,replace=T,prob=w_n)
