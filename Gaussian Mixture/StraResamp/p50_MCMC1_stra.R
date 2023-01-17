@@ -8,17 +8,24 @@ y = mixture.dat$y
 library(Boom)
 library(parallel)
 library(foreach)
-library(doParallel)
+library(doSNOW)
 numCores = detectCores()
-registerDoParallel(numCores)
+cl = makeCluster(numCores)
+registerDoSNOW(cl)
 
 ## Given Value
-n = 500#number of particles
+n = 200#number of particles
 p = 50#number of distributions to sample from using smc
-m = 200#number of repetitive experiments
-threshold = seq(0.4,1,length=7)
+m = 96#number of repetitive experiments
+threshold = seq(0.1,1,length=10)
+
+## doSNOW progress bar
+pb = txtProgressBar(max = m,style=3)
+progress = function(n) setTxtProgressBar(pb,n)
+opts = list(progress=progress)
 
 # prior choices from Richardson and Green P735
+set.seed(5001)
 kexi = mean(y)
 R = max(y)-min(y)
 K = 1/R^2
@@ -26,6 +33,29 @@ set.seed(101)
 beta = rgamma(1,0.2,10/R^2)
 alpha = 2
 delta = 1
+
+# resampling scheme using stratified resampling
+inv_cdf = function(su,w){
+  j = 1
+  s = w[1]
+  m = length(su)
+  a = rep(0,m)
+  for (i in 1:m){
+    while (su[i]>s) {
+      j = j+1
+      s = s+w[j]
+    }
+    a[i] = j
+  }
+  return(a)
+}
+
+# stratified resampling
+stratified = function(w){
+  m = length(w)
+  su = (runif(m)+0:(m-1))/m
+  return(inv_cdf(su,w))
+}
 
 ##the data is generated from .7*dnorm(x,7,.5) + .3*dnorm(x,10,.5)
 ## pin is proportional to likelihood(y;theta_r)^phi_n * f(theta_r)
@@ -40,11 +70,12 @@ log.likelihood <- function(mu,lambda,omega){
 ## using first 50 steps of annealing
 ## using dnorm(0,1) as proposal in initial state and in MCMC
 phi <- function(n){
-  if (n<=10){
-    return(n*0.01/10)
+  if (n<=0.2*p){
+    return(n*0.15/(0.2*p))
+  }else if(n<=0.6*p){
+    return(n*(0.4-0.15)/(0.4*p)+0.15)
   }else{
-    r = (1/0.01)^(1/40)
-    return(0.01*r^(n-10))
+    return(n*(1-0.4)/(0.4*p)+0.4)
   }
 }
 
@@ -102,16 +133,18 @@ Kn <- function(mu,lambda,omega,mut,lambdat,omegat){
   return(res)
 }
 
-doit <- function(){
+doit <- function(l){
+  set.seed(l)
   mu = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))# the first layer is mu1, the second layer is mu2, the same is as follows
   lambda = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
   omega = array(rep(0,n*p*2*length(threshold)),c(n,p,2,length(threshold)))
   mse.mu = rep(0,length(threshold))
   mse.omega = rep(0,length(threshold))
   mse.omega = rep(0,length(threshold))
-  w_u = rep(0,n)
-  w_u.tmp = rep(0,n)
+  mse.lambda = rep(0,length(threshold))
   for (j in 1:length(threshold)) {
+    w_u = rep(1,n)
+    w_u.tmp = rep(1,n)
     for (i in 1:n){
       mu[i,1,,j] = rnorm(2,kexi,K^(-1/2))
       lambda[i,1,,j] = rgamma(2,alpha,beta)
@@ -122,9 +155,13 @@ doit <- function(){
     for (i in 1:n) {
       w_u[i] = exp(log.fn(1,mu[i,1,,j],lambda[i,1,,j],omega[i,1,,j]))/prod(dnorm(mu[i,1,,j],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,,j],alpha,beta))/ddirichlet(omega[i,1,,j],c(delta,delta))
     }
+    if (any(is.na(w_u))){
+      idx.na = is.na(w_u)
+      w_u[idx.na]=0
+    }
     w_n = w_u/sum(w_u)
-    if (1/sum(w_n^2) < n){
-      idx = sample(1:n,n,replace=T,prob=w_n)
+    if (1/sum(w_n^2) < threshold[j]*n){
+      idx = stratified(w_n)
       lambda = lambda[idx,,,]
       mu = mu[idx,,,]
       omega = omega[idx,,,]
@@ -133,15 +170,6 @@ doit <- function(){
     
     ## MAIN LOOP
     for (i in 2:p){
-      if (any(is.na(w_n))){
-        lambda[,,1,j] = 9999
-        lambda[,,2,j] = 0
-        omega[,,1,j] = 1
-        omega[,,2,j] = 0
-        mu[,,1,j] = 9999
-        mu[,,2,j] = 0
-        break
-      }
       ## MCMC Move
       mu.update = array(rnorm(n*2,0,.1),c(n,2))
       mu.tmp = mu[,i-1,,j]+mu.update
@@ -195,19 +223,13 @@ doit <- function(){
         w_u.tmp[k] = exp(log.fn(i,mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j]))/divident
       }
       w_u = w_n*w_u.tmp
-      w_n = w_u/sum(w_u)
-      ## Resampling
-      if (any(is.na(w_n))){
-        lambda[,,1,j] = 9999
-        lambda[,,2,j] = 0
-        omega[,,1,j] = 1
-        omega[,,2,j] = 0
-        mu[,,1,j] = 9999
-        mu[,,2,j] = 0
-        break
+      if (any(is.na(w_u))){
+        idx.na = is.na(w_u)
+        w_u[idx.na]=0
       }
-      if (1/sum(w_n^2)<threshold[j]){
-        idx = sample(1:n,n,replace=T,prob=w_n)
+      w_n = w_u/sum(w_u)
+      if (1/sum(w_n^2)<threshold[j]*n){
+        idx = stratified(w_n)
         lambda = lambda[idx,,,]
         mu = mu[idx,,,]
         omega = omega[idx,,,]
@@ -215,33 +237,63 @@ doit <- function(){
       }
     }
     
+    idx1 = mu[,p,1,j]>8
+    idx2 = mu[,p,2,j]>8
+    # !idx2 == idx1 always holds in this situation
+    weight = c(w_n[idx1],w_n[idx2])
+    mu10 = c(mu[idx1,p,1,j],mu[idx2,p,2,j])
+    mu7 = c(mu[!idx2,p,2,j],mu[!idx1,p,1,j])
     
-    idx1 = mu[,50,1,j]>8
-    idx2 = mu[,50,2,j]>8
-    mu10 = c(mu[idx1,50,1,j],mu[idx2,50,2,j])
-    mu7 = c(mu[!idx1,50,1,j],mu[!idx2,50,2,j])
+    omega10 = c(omega[idx1,p,1,j],omega[idx2,p,2,j])
+    omega7 = c(omega[!idx2,p,2,j],omega[!idx1,p,1,j])
     
-    omega10 = c(omega[idx1,50,1,j],omega[idx2,50,2,j])
-    omega7 = c(omega[!idx1,50,1,j],omega[!idx2,50,2,j])
+    lambda10 = c(lambda[idx1,p,1,j],lambda[idx2,p,2,j])
+    lambda7 = c(lambda[!idx2,p,2,j],lambda[!idx1,p,1,j])
     
-    lambda_all = c(lambda[,50,1,j],lambda[,50,2,j])
-    
-    mse.mu[j] = mse.mu[j] + (mean(mu7)-7)^2+var(mu7)+(mean(mu10)-10)^2+var(mu10)
-    mse.omega[j] = mse.omega[j] +  (mean(omega10)-0.3)^2+var(omega10)
-    mse.lambda[j] = mse.lambda[j] + (mean(lambda_all)-4)^2+var(lambda_all)
+    mse.mu[j] = sum(weight*(mu7-7)^2)+sum(weight*(mu10-10)^2)
+    mse.omega[j] = sum(weight*(omega10-0.3)^2)
+    mse.lambda[j] = sum(weight*(lambda10-4)^2)+sum(weight*(lambda7-4)^2)
   }
-  mse.mu = mse.mu/n
-  mse.lambda = mse.lambda/n
-  mse.omega = mse.omega/n
-  return(list(mse.mu=mse.mu,mse.lambda=mse.lambda,mse.omega=mse.omega,mean.mu7=mean(mu7),mean.omega10=mean(omega10),mean.lambda=mean(lambda_all)))
+  return(list(mse.mu=mse.mu,mse.lambda=mse.lambda,mse.omega=mse.omega,mean.mu7=mean(mu7),mean.omega10=mean(omega10)))
 }
 
-res = foreach (l = 1:m,.combine = rbind,.packages = "Boom") %dopar% {
-  set.seed(l)
-  if (l%%40==0){
-    cat("finish",l%/%40, "loop")
-  }
-  return(doit())
-}
+res = foreach (l = 1:m,.combine = rbind,.packages = "Boom",
+               .options.snow=opts) %dopar% {
+                 return(doit(l))
+               }
+close(pb)
 
-save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/p50MCMC1par.RData")
+load("p50MCMC1stra.RData")
+mse.mu = matrix(rep(0,m*length(threshold)),nrow=m)
+mse.lambda = matrix(rep(0,m*length(threshold)),nrow=m)
+mse.omega = matrix(rep(0,m*length(threshold)),nrow=m)
+for (i in 1:m) {
+  mse.mu[i,] = res[i,]$mse.mu
+  mse.lambda[i,] = res[i,]$mse.lambda
+  mse.omega[i,] = res[i,]$mse.omega
+}
+mse.mu = apply(mse.mu, 2, trim_mean)
+mse.lambda = apply(mse.lambda, 2, trim_mean)
+mse.omega = apply(mse.omega, 2, trim_mean)
+plot(mse.mu)
+plot(mse.lambda)
+plot(mse.omega)
+
+mse.mu = rep(0,length(threshold))
+mse.lambda = rep(0,length(threshold))
+mse.omega = rep(0,length(threshold))
+for (i in 1:m){
+  mse.mu = mse.mu + res[i,]$mse.mu
+  mse.lambda = mse.lambda + res[i,]$mse.lambda
+  mse.omega = mse.omega + res[i,]$mse.omega
+}
+mse.mu = mse.mu/m
+mse.omega = mse.omega/m
+mse.lambda = mse.lambda/m
+# plot(mse.mu[-1])
+# plot(mse.lambda[-1])
+# plot(mse.omega[-1])
+# mse.tot = mse.mu+mse.lambda+mse.omega
+# plot(mse.tot[-1])
+
+save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/StraResample/p50MCMC1stra.RData")

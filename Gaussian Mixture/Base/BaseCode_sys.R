@@ -1,21 +1,11 @@
 #-*- coding:utf-8 -*-
 # change into .25 variance proposal for every random walk
-# path1 = "/public1/home/scf0347/ResampFreq/GaussianMixture/mixture.dat"
-# mixture.dat = read.table(path1,header=TRUE)
-# y = mixture.dat$y
-set.seed(109)
-y = rep(0,5000)
-for (i in 1:5000) {
-  if(runif(1)<0.7){
-    y[i] = rnorm(1,7,0.5)
-  }else{
-    y[i] = rnorm(1,10,0.5)
-  }
-}
+path1 = "/public1/home/scf0347/ResampFreq/GaussianMixture/mixture.dat"
+mixture.dat = read.table(path1,header=TRUE)
+y = mixture.dat$y
 
 ## libraries
 library(Boom)
-
 
 ## Given Value
 n = 500
@@ -35,12 +25,7 @@ beta = rgamma(1,0.2,10/R^2)
 alpha = 2
 delta = 1
 
-uniform_spacing = function(N){
-  a = -log(runif(N+1))
-  b = cumsum(a)
-  return(b[-length(b)]/b[length(b)])
-}
-
+# resampling scheme using systematic resampling
 inv_cdf = function(su,w){
   j = 1
   s = w[1]
@@ -56,8 +41,10 @@ inv_cdf = function(su,w){
   return(a)
 }
 
-multinomial = function(w){
-  return(inv_cdf(uniform_spacing(length(w)),w))
+systematic = function(w){
+  m = length(w)
+  su = (rep(runif(1),m)+0:(m-1))/m
+  return(inv_cdf(su,w))
 }
 
 ##the data is generated from .7*dnorm(x,7,.5) + .3*dnorm(x,10,.5)
@@ -157,7 +144,7 @@ if (any(is.na(w_u))){
 }
 w_n = w_u/sum(w_u)
 if (1/sum(w_n^2) < threshold){
-  idx = multinomial(w_n)
+  idx = systematic(w_n)
   lambda = lambda[idx,,]
   mu = mu[idx,,]
   omega = omega[idx,,]
@@ -236,7 +223,7 @@ for (i in 2:p){
   w_n = w_u/sum(w_u)
   ## Resampling
   if (1/sum(w_n^2)<threshold){
-    idx = multinomial(w_n)
+    idx = systematic(w_n)
     lambda = lambda[idx,,]
     mu = mu[idx,,]
     omega = omega[idx,,]
@@ -248,16 +235,15 @@ for (i in 2:p){
 end_time <- Sys.time()
 total_time = end_time-star_time
 
-load("Base.RData")
 idx1 = mu[,50,1]>8
 idx2 = mu[,50,2]>8
 mu10 = c(mu[idx1,50,1],mu[idx2,50,2])
 mu7 = c(mu[!idx1,50,1],mu[!idx2,50,2])
-(mean(mu7)-7)^2+var(mu7)
+# (mean(mu7)-7)^2+var(mu7)
 #str(mu7)
 #str(mu10)
-# hist(mu7)
-mean(mu7)
+#hist(mu7)
+#mean(mu7)
 # hist(mu10)
 #mean(mu7)
 #mean(mu10)
@@ -266,7 +252,7 @@ mean(mu7)
 
 omega10 = c(omega[idx1,50,1],omega[idx2,50,2])
 omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
-# hist(omega10)
+#hist(omega10)
 # hist(omega7)
 #omega_all = c(omega10,omega7)
 #hist(omega_all)
@@ -277,10 +263,9 @@ omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
 lambda_all = c(lambda[,50,1],lambda[,50,2])
 # hist(lambda_all)
 # mean(lambda_all)
-# (mean(lambda_all)-4)^2+var(lambda_all)
 
 #mean(lambda_all)
 #mean(rowSums(ac.lambda))/2
 
 ##但是其实还有一种可能就是Resampling做太多了，导致了最后一直有degeneracy
-save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/Base/Base.RData")
+save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/Base/Base_sys.RData")

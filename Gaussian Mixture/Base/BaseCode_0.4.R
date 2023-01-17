@@ -105,7 +105,7 @@ Kn <- function(mu,lambda,omega,mut,lambdat,omegat){
 ## extract the first sample
 
 
-
+set.seed(1)
 for (i in 1:n){
   mu[i,1,] = rnorm(2,kexi,K^(-1/2))
   lambda[i,1,] = rgamma(2,alpha,beta)
@@ -116,6 +116,10 @@ for (i in 1:n){
 w_u = rep(1,n)
 for (i in 1:n) {
   w_u[i] = exp(log.fn(1,mu[i,1,],lambda[i,1,],omega[i,1,]))/prod(dnorm(mu[i,1,],kexi,K^(-1/2)))/prod(dgamma(lambda[i,1,],alpha,beta))/ddirichlet(omega[i,1,],c(delta,delta))
+}
+if (any(is.na(w_u))){
+  idx.na = is.na(w_u)
+  w_u[idx.na]=0
 }
 w_n = w_u/sum(w_u)
 if (1/sum(w_n^2) < threshold){
@@ -190,17 +194,21 @@ for (i in 2:p){
     }
     w_u.tmp[k] = exp(log.fn(i,mu[k,i,],lambda[k,i,],omega[k,i,]))/divident
   }
+  if (any(is.na(w_u.tmp))){
+    idx.na = is.na(w_u.tmp)
+    w_u.tmp[idx.na]=0
+  }
   w_u = w_n*w_u.tmp
   w_n = w_u/sum(w_u)
-  if (any(is.na(w_n))){
-    lambda[,,1] = 9999
-    lambda[,,2] = 0
-    omega[,,1] = 1
-    omega[,,2] = 0
-    mu[,,1] = 9999
-    mu[,,2] = 0
-    break
-  }
+  # if (any(is.na(w_n))){
+  #   lambda[,,1] = 9999
+  #   lambda[,,2] = 0
+  #   omega[,,1] = 1
+  #   omega[,,2] = 0
+  #   mu[,,1] = 9999
+  #   mu[,,2] = 0
+  #   break
+  # }
   ## Resampling
   if (1/sum(w_n^2)<threshold){
     idx = sample(1:n,n,replace=T,prob=w_n)
@@ -239,7 +247,7 @@ omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
 #mean(rowSums(ac.omega))
 
 lambda_all = c(lambda[,50,1],lambda[,50,2])
-# hist(lambda_all)
+ # hist(lambda_all)
 # mean(lambda_all)
 
 #mean(lambda_all)

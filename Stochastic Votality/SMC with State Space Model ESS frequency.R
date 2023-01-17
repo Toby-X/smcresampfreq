@@ -21,7 +21,7 @@ x.estimate.ori = rep(0,t)
 Rej.ss=matrix(rep(0,length(threshold)*m),nrow=m)
 
 
-  set.seed(4)
+set.seed(4)
 ##Generate Samples
 v = rnorm(t)
 u = rnorm(t)

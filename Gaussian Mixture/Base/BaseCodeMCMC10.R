@@ -1,11 +1,12 @@
 #-*- coding:utf-8 -*-
 # change into .25 variance proposal for every random walk
 # path1 = "/public1/home/scf0347/ResampFreq/GaussianMixture/mixture.dat"
+# # path1 = file.choose()
 # mixture.dat = read.table(path1,header=TRUE)
 # y = mixture.dat$y
 set.seed(109)
-y = rep(0,5000)
-for (i in 1:5000) {
+y = rep(0,500)
+for (i in 1:500) {
   if(runif(1)<0.7){
     y[i] = rnorm(1,7,0.5)
   }else{
@@ -18,11 +19,12 @@ library(Boom)
 
 
 ## Given Value
-n = 500
+n = 100
 p = 50
-mu = array(rep(0,n*p*2),c(n,p,2))# the first layer is mu1, the second layer is mu2, the same is as follows
-lambda = array(rep(0,n*p*2),c(n,p,2))
-omega = array(rep(0,n*p*2),c(n,p,2))
+mc = 10 # number of iterations per proposal
+mu = array(rep(0,n*p*2*mc),c(n,(p-1)*mc+1,2))# the first layer is mu1, the second layer is mu2, the same is as follows
+lambda = array(rep(0,n*p*mc*2),c(n,(p-1)*mc+1,2))
+omega = array(rep(0,n*p*mc*2),c(n,(p-1)*mc+1,2))
 wu = rep(0,n)
 threshold = n
 
@@ -34,31 +36,6 @@ set.seed(101)
 beta = rgamma(1,0.2,10/R^2)
 alpha = 2
 delta = 1
-
-uniform_spacing = function(N){
-  a = -log(runif(N+1))
-  b = cumsum(a)
-  return(b[-length(b)]/b[length(b)])
-}
-
-inv_cdf = function(su,w){
-  j = 1
-  s = w[1]
-  m = length(su)
-  a = rep(0,m)
-  for (i in 1:m){
-    while (su[i]>s) {
-      j = j+1
-      s = s+w[j]
-    }
-    a[i] = j
-  }
-  return(a)
-}
-
-multinomial = function(w){
-  return(inv_cdf(uniform_spacing(length(w)),w))
-}
 
 ##the data is generated from .7*dnorm(x,7,.5) + .3*dnorm(x,10,.5)
 ## pin is proportional to likelihood(y;theta_r)^phi_n * f(theta_r)
@@ -73,11 +50,12 @@ log.likelihood <- function(mu,lambda,omega){
 ## using first 50 steps of annealing
 ## using dnorm(0,1) as proposal in initial state and in MCMC
 phi <- function(n){
-  if (n<=10){
-    return(n*0.01/10)
+  if (n<=0.2*p){
+    return(n*0.15/(0.2*p))
+  }else if(n<=0.6*p){
+    return(n*(0.4-0.15)/(0.4*p)+0.15)
   }else{
-    r = (1/0.01)^(1/40)
-    return(0.01*r^(n-10))
+    return(n*(1-0.4)/(0.4*p)+0.4)
   }
 }
 
@@ -137,9 +115,6 @@ Kn <- function(mu,lambda,omega,mut,lambdat,omegat){
 
 ## Using suboptimal backward kernels
 ## extract the first sample
-
-
-
 for (i in 1:n){
   mu[i,1,] = rnorm(2,kexi,K^(-1/2))
   lambda[i,1,] = rgamma(2,alpha,beta)
@@ -157,7 +132,7 @@ if (any(is.na(w_u))){
 }
 w_n = w_u/sum(w_u)
 if (1/sum(w_n^2) < threshold){
-  idx = multinomial(w_n)
+  idx = sample(1:n,n,replace=T,prob=w_n)
   lambda = lambda[idx,,]
   mu = mu[idx,,]
   omega = omega[idx,,]
@@ -177,95 +152,97 @@ star_time <- Sys.time()
 w_u.tmp = rep(1,n)
 for (i in 2:p){
   ## MCMC Move
-  mu.update = array(rnorm(n*2,0,.1),c(n,2))
-  mu.tmp = mu[,i-1,]+mu.update
-  lambda.update = array(rlnorm(n*2,0,.1),c(n,2))
-  lambda.tmp = lambda[,i-1,]*lambda.update
-  u.update = rnorm(n,0,.1)
-  u.tmp = log(omega[,i-1,1]/(1-omega[,i-1,1]))+u.update
-  omega.tmp = omega[,i-1,]
-  omega.tmp[,1] = exp(u.tmp)/(1+exp(u.tmp))
-  omega.tmp[,2] = 1-omega.tmp[,1]
-  # 加个循环把每个样本都MCMC update了
-  ## 这里由于三个一起update所以效益可能会低，要不要查查它update一共多少次
-  for (k in 1:n) {
-    acrate.mu = acceptance.mu(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,],lambda[k,i-1,],omega[k,i-1,])
-    acrate.lambda1 = acceptance.lambda1(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,],lambda[k,i-1,],omega[k,i-1,])
-    acrate.lambda2 = acceptance.lambda2(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,],lambda[k,i-1,],omega[k,i-1,])
-    acrate.omega = acceptance.omega(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,i-1,],lambda[k,i-1,],omega[k,i-1,])
-    rand = runif(1)
-    if (is.na(acrate.mu)){
-      mu[k,i,] = mu.tmp[k,]
-    }else if (rand<=acrate.mu){
-      mu[k,i,] = mu.tmp[k,]
-    }else{
-      mu[k,i,] = mu[k,i-1,]
+  for (q in 1:mc) {
+    mu.update = array(rnorm(n*2,0,.1),c(n,2))
+    mu.tmp = mu[,(i-2)*mc+q,]+mu.update
+    lambda.update = array(rlnorm(n*2,0,.1),c(n,2))
+    lambda.tmp = lambda[,(i-2)*mc+q,]*lambda.update
+    u.update = rnorm(n,0,.1)
+    u.tmp = log(omega[,(i-2)*mc+q,1]/(1-omega[,(i-2)*mc+q,1]))+u.update
+    omega.tmp = omega[,(i-2)*mc+q,]
+    omega.tmp[,1] = exp(u.tmp)/(1+exp(u.tmp))
+    omega.tmp[,2] = 1-omega.tmp[,1]
+    for (k in 1:n) {
+      acrate.mu = acceptance.mu(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,(i-2)*mc+q,],lambda[k,(i-2)*mc+q,],omega[k,(i-2)*mc+q,])
+      acrate.lambda1 = acceptance.lambda1(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,(i-2)*mc+q,],lambda[k,(i-2)*mc+q,],omega[k,(i-2)*mc+q,])
+      acrate.lambda2 = acceptance.lambda2(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,(i-2)*mc+q,],lambda[k,(i-2)*mc+q,],omega[k,(i-2)*mc+q,])
+      acrate.omega = acceptance.omega(i,mu.tmp[k,],lambda.tmp[k,],omega.tmp[k,],mu[k,(i-2)*mc+q,],lambda[k,(i-2)*mc+q,],omega[k,(i-2)*mc+q,])
+      rand = runif(1)
+      if (is.na(acrate.mu)){
+        mu[k,(i-2)*mc+q+1,] = mu.tmp[k,]
+      }else if (rand<=acrate.mu){
+        mu[k,(i-2)*mc+q+1,] = mu.tmp[k,]
+      }else{
+        mu[k,(i-2)*mc+q+1,] = mu[k,(i-2)*mc+q,]
+      }
+      if (is.na(acrate.lambda1)){
+        lambda[k,(i-2)*mc+q+1,1] = lambda.tmp[k,1]
+      }else if (rand<=acrate.lambda1){
+        lambda[k,(i-2)*mc+q+1,1] = lambda.tmp[k,1]
+      }else{
+        lambda[k,(i-2)*mc+q+1,1] = lambda[k,(i-2)*mc+q,1]
+      }
+      if (is.na(acrate.lambda2)){
+        lambda[k,(i-2)*mc+q+1,2] = lambda.tmp[k,2]
+      }else if (rand<=acrate.lambda2){
+        lambda[k,(i-2)*mc+q+1,2] = lambda.tmp[k,2]
+      }else{
+        lambda[k,(i-2)*mc+q+1,2] = lambda[k,(i-2)*mc+q,2]
+      }
+      if (is.na(acrate.omega)){
+        omega[k,(i-2)*mc+q+1,] = omega.tmp[k,]
+      }else if (rand<=acrate.omega){
+        omega[k,(i-2)*mc+q+1,] = omega.tmp[k,]
+      }else{
+        omega[k,(i-2)*mc+q+1,] = omega[k,(i-2)*mc+q,]
+      }
+      divident = 0
+      for (j in 1:n) {
+        divident = divident + exp(log.fn(i-1,mu[j,(i-2)*mc+q,],lambda[j,(i-2)*mc+q,],omega[j,(i-2)*mc+q,]))*Kn(mu[k,(i-2)*mc+q+1,],lambda[k,(i-2)*mc+q+1,],omega[k,(i-2)*mc+q+1,],mu[j,(i-2)*mc+q,],lambda[j,(i-2)*mc+q,],omega[j,(i-2)*mc+q,])
+      }
+      w_u.tmp[k] = exp(log.fn(i,mu[k,(i-2)*mc+q+1,],lambda[k,(i-2)*mc+q+1,],omega[k,(i-2)*mc+q+1,]))/divident
     }
-    if (is.na(acrate.lambda1)){
-      lambda[k,i,1] = lambda.tmp[k,1]
-    }else if (rand<=acrate.lambda1){
-      lambda[k,i,1] = lambda.tmp[k,1]
-    }else{
-      lambda[k,i,1] = lambda[k,i-1,1]
+    w_u = w_n*w_u.tmp
+    if (any(is.na(w_u))){
+      idx.na = is.na(w_u)
+      w_u[idx.na]=0
     }
-    if (is.na(acrate.lambda2)){
-      lambda[k,i,2] = lambda.tmp[k,2]
-    }else if (rand<=acrate.lambda2){
-      lambda[k,i,2] = lambda.tmp[k,2]
-    }else{
-      lambda[k,i,2] = lambda[k,i-1,2]
+    if (all(w_u)==0){
+      w_u = rep(1/n,n)
     }
-    if (is.na(acrate.omega)){
-      omega[k,i,] = omega.tmp[k,]
-    }else if (rand<=acrate.omega){
-      omega[k,i,] = omega.tmp[k,]
-    }else{
-      omega[k,i,] = omega[k,i-1,]
+    w_n = w_u/sum(w_u)
+    ## Resampling
+    if (1/sum(w_n^2)<threshold){
+      idx = sample(1:n,n,replace=T,prob=w_n)
+      lambda = lambda[idx,,]
+      mu = mu[idx,,]
+      omega = omega[idx,,]
+      w_n = rep(1/n,n)
     }
-    divident = 0
-    for (j in 1:n) {
-      divident = divident + exp(log.fn(i-1,mu[j,i-1,],lambda[j,i-1,],omega[j,i-1,]))*Kn(mu[k,i,],lambda[k,i,],omega[k,i,],mu[j,i-1,],lambda[j,i-1,],omega[j,i-1,])
-    }
-    w_u.tmp[k] = exp(log.fn(i,mu[k,i,],lambda[k,i,],omega[k,i,]))/divident
   }
-  w_u = w_n*w_u.tmp
-  if (any(is.na(w_u))){
-    idx.na = is.na(w_u)
-    w_u[idx.na]=0
-  }
-  w_n = w_u/sum(w_u)
-  ## Resampling
-  if (1/sum(w_n^2)<threshold){
-    idx = multinomial(w_n)
-    lambda = lambda[idx,,]
-    mu = mu[idx,,]
-    omega = omega[idx,,]
-    w_n = rep(1/n,n)
-  }
-  sprintf("已完成 %d%%", round(i*100/p))
 }
 
 end_time <- Sys.time()
 total_time = end_time-star_time
 
-load("Base.RData")
-idx1 = mu[,50,1]>8
-idx2 = mu[,50,2]>8
-mu10 = c(mu[idx1,50,1],mu[idx2,50,2])
-mu7 = c(mu[!idx1,50,1],mu[!idx2,50,2])
-(mean(mu7)-7)^2+var(mu7)
+# load("BaseMCMC10.RData")
+idx1 = mu[,(p-1)*mc+1,1]>8
+idx2 = mu[,(p-1)*mc+1,2]>8
+mu10 = c(mu[idx1,(p-1)*mc+1,1],mu[idx2,(p-1)*mc+1,2])
+mu7 = c(mu[!idx1,(p-1)*mc+1,1],mu[!idx2,(p-1)*mc+1,2])
+#(mean(mu7)-7)^2+var(mu7)
 #str(mu7)
 #str(mu10)
-# hist(mu7)
-mean(mu7)
+#hist(mu7)
+#mean(mu7)
 # hist(mu10)
 #mean(mu7)
 #mean(mu10)
 ##稍微好一点点，但是还是应该看看acceptance rate再做结论
 #mean(rowSums(ac.mu))
 
-omega10 = c(omega[idx1,50,1],omega[idx2,50,2])
-omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
+omega10 = c(omega[idx1,(p-1)*mc+1,1],omega[idx2,(p-1)*mc+1,2])
+omega7 = c(omega[!idx1,(p-1)*mc+1,1],omega[!idx2,(p-1)*mc+1,2])
 # hist(omega10)
 # hist(omega7)
 #omega_all = c(omega10,omega7)
@@ -274,13 +251,12 @@ omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
 #mean(omega7)
 #mean(rowSums(ac.omega))
 
-lambda_all = c(lambda[,50,1],lambda[,50,2])
+lambda_all = c(lambda[,(p-1)*mc+1,1],lambda[,(p-1)*mc+1,2])
+# 是数据的问题还是我lambda的估计确实有问题？？
 # hist(lambda_all)
 # mean(lambda_all)
-# (mean(lambda_all)-4)^2+var(lambda_all)
 
 #mean(lambda_all)
 #mean(rowSums(ac.lambda))/2
 
-##但是其实还有一种可能就是Resampling做太多了，导致了最后一直有degeneracy
-save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/Base/Base.RData")
+save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/Base/BaseMCMC10.RData")

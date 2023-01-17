@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -J SMCS_5001
-#SBATCH -n 1
+#SBATCH -n 2
 #SBATCH -t 72:00:00
-#SBATCH -N 1
+#SBATCH -N 2
 #SBATCH -c 48
 #SBATCH -p queue
 #SBATCH -o /public1/home/scf0347/ResampFreq/GaussianMixture/p50MCMC1.txt
