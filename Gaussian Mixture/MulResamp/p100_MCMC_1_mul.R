@@ -119,6 +119,7 @@ doit <- function(l){
   mu10.estimate = rep(0,length(threshold))
   omega7.estimate = rep(0,length(threshold))
   lambda.estimate = rep(0,length(threshold))
+  rejuvs = rep(0,length(threshold))
   for (j in 1:length(threshold)) {
     w_u = rep(1,n)
     w_u.tmp = rep(1,n)
@@ -143,6 +144,7 @@ doit <- function(l){
       mu = mu[idx,,,]
       omega = omega[idx,,,]
       w_n = rep(1/n,n)
+      rejuvs[j] = rejuvs[j] + 1
     }
     
     ## MAIN LOOP
@@ -211,6 +213,7 @@ doit <- function(l){
         mu = mu[idx,,,]
         omega = omega[idx,,,]
         w_n = rep(1/n,n)
+        rejuvs[j] = rejuvs[j]+1
       }
     }
     
@@ -232,7 +235,7 @@ doit <- function(l){
     omega7.estimate[j] = sum(weight*omega7)
     lambda.estimate[j] = (sum(weight*lambda7)+sum(weight*lambda10))/2
   }
-  return(list(mu7=mu7.estimate,mu10=mu10.estimate,lambda=lambda.estimate,omega7=omega7.estimate))
+  return(list(mu7=mu7.estimate,mu10=mu10.estimate,lambda=lambda.estimate,omega7=omega7.estimate,rejuvs=rejuvs))
 }
 
 res = foreach (l = 1:m,.combine = rbind,.packages = "Boom",
@@ -245,29 +248,29 @@ trim_mean <- function(x){
   mean(x,trim=0.05)
 }
 
-load("p100MCMC1mul.RData")
-mu7 = matrix(rep(0,m*length(threshold)),nrow=m)
-mu10 = matrix(rep(0,m*length(threshold)),nrow = m)
-omega7 = matrix(rep(0,m*length(threshold)),nrow = m)
-lambda = matrix(rep(0,m*length(threshold)),nrow = m)
-for (i in 1:m){
-  mu7[i,] = res[i,]$mu7
-  mu10[i,] = res[i,]$mu10
-  lambda[i,] = res[i,]$lambda
-  omega7[i,] = res[i,]$omega7
-}
-boxplot(mu7)
-a = order(mu7[,8],decreasing = T)
-b = which.min(mu7[,9])
-mu7 = mu7[c(-a[1:2],-b),]
-mu10 = mu10[c(-a[1:2],-b),]
-omega7 = omega7[c(-a[1:2],-b),]
-lambda = lambda[c(-a[1:2],-b),]
-mse.mu = (colMeans(mu7)-7)^2+apply(mu7,2,var)+(colMeans(mu10)-10)^2+apply(mu10,2,var)
-mse.omega = (colMeans(omega7)-0.7)^2+apply(omega7,2,var)
-mse.lambda = (colMeans(lambda)-4)^2+apply(lambda,2,var)
-plot(threshold,mse.mu,xlab = "ESS Threshold")
-plot(threshold,mse.omega, xlab = "ESS Threshold")
-plot(threshold,mse.lambda, xlab = "ESS Threshold")
+# load("p100MCMC1mul.RData")
+# mu7 = matrix(rep(0,m*length(threshold)),nrow=m)
+# mu10 = matrix(rep(0,m*length(threshold)),nrow = m)
+# omega7 = matrix(rep(0,m*length(threshold)),nrow = m)
+# lambda = matrix(rep(0,m*length(threshold)),nrow = m)
+# for (i in 1:m){
+#   mu7[i,] = res[i,]$mu7
+#   mu10[i,] = res[i,]$mu10
+#   lambda[i,] = res[i,]$lambda
+#   omega7[i,] = res[i,]$omega7
+# }
+# boxplot(mu7)
+# a = order(mu7[,8],decreasing = T)
+# b = which.min(mu7[,9])
+# mu7 = mu7[c(-a[1:2],-b),]
+# mu10 = mu10[c(-a[1:2],-b),]
+# omega7 = omega7[c(-a[1:2],-b),]
+# lambda = lambda[c(-a[1:2],-b),]
+# mse.mu = (colMeans(mu7)-7)^2+apply(mu7,2,var)+(colMeans(mu10)-10)^2+apply(mu10,2,var)
+# mse.omega = (colMeans(omega7)-0.7)^2+apply(omega7,2,var)
+# mse.lambda = (colMeans(lambda)-4)^2+apply(lambda,2,var)
+# plot(threshold,mse.mu,xlab = "ESS Threshold")
+# plot(threshold,mse.omega, xlab = "ESS Threshold")
+# plot(threshold,mse.lambda, xlab = "ESS Threshold")
 
 save.image("/public1/home/scf0347/ResampFreq/GaussianMixture/MultiResample/p100MCMC1mul.RData")

@@ -6,7 +6,7 @@ numCores = detectCores()
 cl = makeCluster(numCores)
 registerDoSNOW(cl)
 
-m = 192
+m = 48
 ## doSNOW progress bar
 pb = txtProgressBar(max = m,style=3)
 progress = function(n) setTxtProgressBar(pb,n)
@@ -26,54 +26,30 @@ threshold = seq(.1,1,by=0.1)
 doit <- function(l,x,y){
   X = matrix(rep(0,n*t),nrow=n)
   x.estimate.ss = array(rep(0,t*m*length(threshold)),c(m,t,length(threshold)))
-  x.estimate.ori = rep(0,t)
+  rejuvs = rep(0,length(threshold))
   
   for (l in 1:m) {
-    for (j in 1:length(threshold)){#change of series
-      X[,1] = rnorm(n)
-      W = dnorm(X[,1],0,sigma^2/(1-alpha^2))*dnorm(y[i],0,beta*exp(X[,i]/2))/dnorm(X[,1])
-      if (any(is.na(W))){
-        idx = is.na(W)
-        W[idx] = 0
-      }
+    for (j in 1:length(threshold)){
+      X[,1] = rnorm(n,0,sqrt(sigma^2/(1-alpha^2)))
+      W = dnorm(y[1],0,beta*exp(X[,1]/2))
       w = W/sum(W)
       x.estimate.ss[l,1,j] = sum(w*X[,1])
       if (1/sum(w^2) < threshold[j]*n){
         idx = sample(1:n,n,prob = w, replace = T)
         X = X[idx,]
         W = rep(1/n,n)
+        rejuvs[j] = rejuvs[j]+1
       }
       for (i in 2:t) {
-        X[,i]=rnorm(n,X[,i-1]+y[i])
-        lW.tmp = log(dnorm(X[,i],alpha*X[,i-1],sigma^2))+log(dnorm(y[i],0,beta*exp(X[,i]/2)))-log(dnorm(X[,i],X[,i-1]+y[i]))
-        if (all(lW.tmp<log(1e-100))){
-          lW.tmp = lW.tmp + log(1e200)
-        }
-        # if (all(exp(lW.tmp)==0)){
-        #   cat("i=",i)
-        # }
-        W = exp(log(W)+lW.tmp)
-        if (any(is.infinite(lW.tmp))){
-          idx.inf = is.infinite(lW.tmp)
-          W[idx.inf] = 0
-        }
-        # if (all(W<1e-50)){
-        #   W = W*1e100
-        # }
-        # if (any(is.na(W))){
-        #   idx = is.na(W)
-        #   W[idx] = 0
-        # }
-        # if (all(W==0)){
-        #   x.estimate.ss[l,i,j] = 9999
-        #   next
-        # }
+        X[,i]=rnorm(n,alpha*X[,i-1],sigma)
+        W = W * dnorm(y[i],0,beta*exp(X[,i]/2))
         w = W/sum(W)
         x.estimate.ss[l,i,j] = sum(w*X[,i])
         if (1/sum(w^2)<threshold[j]*n){
           idx = sample(1:n,n,prob = w, replace = T)
           X = X[idx,]
           W = rep(1/n,n)
+          rejuvs[j] = rejuvs[j] + 1
         }
       }
     }
@@ -87,12 +63,9 @@ doit <- function(l,x,y){
   }
   mse.ss = mse.ss/m
   mse.sum.ss <- rowSums(mse.ss)
+  rejuvs = rejuvs/m
   
-  return(list(mse = mse.sum.ss, x.estimate=x.estimate.ss, x=x))
-}
-
-doit1 <- function(x){
-  
+  return(list(mse = mse.sum.ss, rejuvs = rejuvs))
 }
 
 res = foreach (l = 1:p,.combine = rbind,.packages = "Boom",
@@ -113,4 +86,18 @@ res = foreach (l = 1:p,.combine = rbind,.packages = "Boom",
                }
 close(pb)
 
+mse = matrix(rep(0,p*length(threshold)),nrow=p)
+rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
+for (i in 1:p) {
+  mse[i,] = res[i,]$mse
+  rejuvs[i,] = res[i,]$rejuvs
+}
+mse.mean = colMeans(mse)
+rejuvs.mean = colMeans(rejuvs)
+plot(ess, mse.mean,ylab="MSE",xlab="ESS Threshold")
+# rejuvs.mean
+
 save.image("/public1/home/scf0347/ResampFreq/SV/SVMO.RData")
+
+# load("SVMO.RData")
+

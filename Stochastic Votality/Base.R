@@ -16,7 +16,7 @@ X0 = matrix(rep(0,N*t),nrow=N)
 x.estimate.ss = array(rep(0,t*m*length(threshold)),c(m,t,length(threshold)))
 x.estimate.ori = rep(0,t)
 
-l = 1
+l = 14
 set.seed(l)
 ##Generate Samples
 v = rnorm(t)
@@ -31,8 +31,8 @@ for (i in 2:t){
 
 for (l in 1:m) {
   for (j in 1:length(threshold)){#change of series
-    X[,1] = rnorm(n)
-    W = dnorm(X[,1],0,sigma^2/(1-alpha^2))*dnorm(y[i],0,beta*exp(X[,i]/2))/dnorm(X[,1])
+    X[,1] = rnorm(n,0,sqrt(sigma^2/(1-alpha^2)))
+    W = dnorm(y[1],0,beta*exp(X[,1]/2))
     if (any(is.na(W))){
       idx = is.na(W)
       W[idx] = 0
@@ -45,8 +45,8 @@ for (l in 1:m) {
       W = rep(1/n,n)
     }
     for (i in 2:t) {
-      X[,i]=rnorm(n,X[,i-1]+y[i])
-      lW.tmp = log(dnorm(X[,i],alpha*X[,i-1],sigma^2))+log(dnorm(y[i],0,beta*exp(X[,i]/2)))-log(dnorm(X[,i],X[,i-1]+y[i]))
+      X[,i]=rnorm(n,alpha*X[,i-1],sigma)
+      lW.tmp = log(dnorm(y[i],0,beta*exp(X[,i]/2)))
       # if (all(lW.tmp<log(1e-200))){
       #   lW.tmp = lW.tmp + log(1e300)
       # }
@@ -54,9 +54,9 @@ for (l in 1:m) {
       #   cat("i=",i)
       # }
       W = W*exp(lW.tmp)
-      if (all(W<1e-50)){
-        W = W*1e100
-      }
+      # if (all(W<1e-50)){
+      #   W = W*1e100
+      # }
       # if (any(is.na(W))){
       #   idx = is.na(W)
       #   W[idx] = 0
