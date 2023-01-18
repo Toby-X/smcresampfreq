@@ -217,11 +217,7 @@ doit <- function(l){
         }else{
           omega[k,i,,j] = omega[k,i-1,,j]
         }
-        divident=0
-        for (o in 1:n) {
-          divident = divident + exp(log.fn(i-1,mu[o,i-1,,j],lambda[o,i-1,,j],omega[o,i-1,,j]))*Kn(mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j],mu[o,i-1,,j],lambda[o,i-1,,j],omega[o,i-1,,j])
-        }
-        w_u.tmp[k] = exp(log.fn(i,mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j]))/divident
+        w_u.tmp[k] = exp(log.fn(i,mu[k,i,,j],lambda[k,i,,j],omega[k,i,,j]))
       }
       w_u = w_n*w_u.tmp
       if (any(is.na(w_u))){

@@ -248,17 +248,21 @@ trim_mean <- function(x){
   mean(x,trim=0.05)
 }
 
-# load("p100MCMC1mul.RData")
-# mu7 = matrix(rep(0,m*length(threshold)),nrow=m)
-# mu10 = matrix(rep(0,m*length(threshold)),nrow = m)
-# omega7 = matrix(rep(0,m*length(threshold)),nrow = m)
-# lambda = matrix(rep(0,m*length(threshold)),nrow = m)
-# for (i in 1:m){
-#   mu7[i,] = res[i,]$mu7
-#   mu10[i,] = res[i,]$mu10
-#   lambda[i,] = res[i,]$lambda
-#   omega7[i,] = res[i,]$omega7
-# }
+load("p100MCMC1mul.RData")
+mu7 = matrix(rep(0,m*length(threshold)),nrow=m)
+mu10 = matrix(rep(0,m*length(threshold)),nrow = m)
+omega7 = matrix(rep(0,m*length(threshold)),nrow = m)
+lambda = matrix(rep(0,m*length(threshold)),nrow = m)
+rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
+for (i in 1:m){
+  mu7[i,] = res[i,]$mu7
+  mu10[i,] = res[i,]$mu10
+  lambda[i,] = res[i,]$lambda
+  rejuvs[i,] = res[i,]$rejuvs
+  omega7[i,] = res[i,]$omega7
+}
+rejvs.mean = colMeans(rejuvs)
+rejvs.mean
 # boxplot(mu7)
 # a = order(mu7[,8],decreasing = T)
 # b = which.min(mu7[,9])
