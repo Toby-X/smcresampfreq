@@ -53,6 +53,7 @@ doit <- function(l){
     X[,1,j] = rnorm(n)
     W = dens.fun(cbind(X[,1,j]))/dnorm(X[,1,j])
     w = W/sum(W)
+    x.estimate[1,j] = sum(w*X[,1,j])
     if (1/sum(w^2) < threshold[j]*n){
       idx = systematic(w)
       X = X[idx,,]
@@ -64,6 +65,7 @@ doit <- function(l){
       u = dens.fun(cbind(X[,1:t,j]))/dens.fun(cbind(X[,1:(t-1),j]))/dnorm(X[,t,j])
       W = W*u
       w = W/sum(W)
+      x.estimate[t,j] = sum(w*X[,t,j])
       if (1/sum(w^2) < threshold[j]*n){
         idx = systematic(w)
         X = X[idx,,]
@@ -71,9 +73,6 @@ doit <- function(l){
         W = rep(1,n)
       }
     }
-    ##Result
-    w = W/sum(W)
-    x.estimate[,j] = as.vector(w%*%as.matrix(X[,,j]))
   }
   return(list(estimate=x.estimate,rejuvs=rejuvs))
 }
@@ -88,7 +87,7 @@ X = array(rep(0,m*p*length(threshold)),c(m,p,length(threshold)))
 rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
 for (i in 1:m) {
   X[i,,] = res[i,]$estimate
-  rejuvs[i,] = res[i,]$rejuvs 
+  rejuvs[i,] = res[i,]$rejuvs
 }
 colMeans(rejuvs)
 mse = rep(0,length(threshold))

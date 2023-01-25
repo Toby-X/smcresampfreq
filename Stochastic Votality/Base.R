@@ -7,17 +7,16 @@ alpha=0.91
 sigma=1.0
 beta=0.5
 W=rep(1,n)/n
-threshold = c(1)
+threshold = c(0)
 
 x = rep(0,t)
 y = rep(0,t)
 X = matrix(rep(0,n*t),nrow=n)
 X0 = matrix(rep(0,N*t),nrow=N)
-x.estimate.ss = array(rep(0,t*m*length(threshold)),c(m,t,length(threshold)))
-x.estimate.ori = rep(0,t)
+x.estimate.ss1 = rep(0,t)
+x.estimate.ss2 = rep(0,t)
 
-l = 14
-set.seed(l)
+set.seed(2)
 ##Generate Samples
 v = rnorm(t)
 u = rnorm(t)
@@ -28,63 +27,41 @@ for (i in 2:t){
   y[i] = beta*exp(x[i]/2)*u[i]
 }
 
-
-for (l in 1:m) {
-  for (j in 1:length(threshold)){#change of series
-    X[,1] = rnorm(n,0,sqrt(sigma^2/(1-alpha^2)))
-    W = dnorm(y[1],0,beta*exp(X[,1]/2))
-    if (any(is.na(W))){
-      idx = is.na(W)
-      W[idx] = 0
-    }
-    w = W/sum(W)
-    x.estimate.ss[l,1,j] = sum(w*X[,1])
-    if (1/sum(w^2) < threshold[j]*n){
-      idx = sample(1:n,n,prob = w, replace = T)
-      X = X[idx,]
-      W = rep(1/n,n)
-    }
-    for (i in 2:t) {
-      X[,i]=rnorm(n,alpha*X[,i-1],sigma)
-      lW.tmp = log(dnorm(y[i],0,beta*exp(X[,i]/2)))
-      # if (all(lW.tmp<log(1e-200))){
-      #   lW.tmp = lW.tmp + log(1e300)
-      # }
-      # if (all(exp(lW.tmp)==0)){
-      #   cat("i=",i)
-      # }
-      W = W*exp(lW.tmp)
-      # if (all(W<1e-50)){
-      #   W = W*1e100
-      # }
-      # if (any(is.na(W))){
-      #   idx = is.na(W)
-      #   W[idx] = 0
-      # }
-      w = W/sum(W)
-      x.estimate.ss[l,i,j] = sum(w*X[,i])
-      if (1/sum(w^2)<threshold[j]*n){
-        idx = sample(1:n,n,prob = w, replace = T)
-        X = X[idx,]
-        W = rep(1/n,n)
-      }
-    }
-  }
+X[,1] = rnorm(n,0,sqrt(sigma^2/(1-alpha^2)))
+W = dnorm(y[1],0,beta*exp(X[,1]/2))
+w = W/sum(W)
+x.estimate.ss1[1] = sum(w*X[,1])
+idx = sample(1:n,n,replace = T,prob = w)
+X = X[idx,]
+W = rep(1,n)/n
+for (i in 2:t) {
+  X[,i]=rnorm(n,alpha*X[,i-1],sigma)
+  lW.tmp = log(dnorm(y[i],0,beta*exp(X[,i]/2)))
+  W = W*exp(lW.tmp)
+  w = W/sum(W)
+  x.estimate.ss1[i] = sum(w*X[,i])
+  idx = sample(1:n,n,replace = T,prob = w)
+  X = X[idx,]
+  W = rep(1,n)/n
 }
 
-mse.ss <- matrix(rep(0,length(threshold)*t),nrow=length(threshold))
-for (k in 1:length(threshold)){
-  for (i in 1:m)
-  {
-    mse.ss[k,] = mse.ss[k,]+(x-x.estimate.ss[i,,k])^2
-  }
+X[,1] = rnorm(n,0,sqrt(sigma^2/(1-alpha^2)))
+W = dnorm(y[1],0,beta*exp(X[,1]/2))
+w = W/sum(W)
+x.estimate.ss2[1] = sum(w*X[,1])
+for (i in 2:t) {
+  X[,i]=rnorm(n,alpha*X[,i-1],sigma)
+  lW.tmp = log(dnorm(y[i],0,beta*exp(X[,i]/2)))
+  W = W*exp(lW.tmp)
+  w = W/sum(W)
+  x.estimate.ss2[i] = sum(w*X[,i])
 }
-mse.ss = mse.ss/m
-mse.sum.ss <- rowSums(mse.ss)
 
-save.image("Base.RData")
+library(tidyverse)
+data = data.frame(1:length(x),x,x.estimate.ss1,x.estimate.ss2)
+colnames(data) = c("idx","ori","Resamp","NoResamp")
+data.n = data %>% pivot_longer("ori":"NoResamp",names_to = "cat")
 
-load("Base.RData")
-mse.ss
-mse.sum.ss
-boxplot(mse.ss)
+
+ggplot(data.n)+
+  geom_line(aes(idx,value,col=cat),linewidth=1)

@@ -32,6 +32,7 @@ doit <- function(l){
     X[,1,j] = rnorm(n)
     W = dens.fun(cbind(X[,1,j]))/dnorm(X[,1,j])
     w = W/sum(W)
+    x.estimate[1,j] = sum(w*X[,1,j])
     if (1/sum(w^2) < threshold[j]*n){
       idx = sample(1:n,n,replace = T,prob = w)
       X = X[idx,,]
@@ -43,6 +44,7 @@ doit <- function(l){
       u = dens.fun(cbind(X[,1:t,j]))/dens.fun(cbind(X[,1:(t-1),j]))/dnorm(X[,t,j])
       W = W*u
       w = W/sum(W)
+      x.estimate[t,j] = sum(w*X[,t,j])
       if (1/sum(w^2) < threshold[j]*n){
         idx = sample(1:n,n,replace = T,prob = w)
         X = X[idx,,]
@@ -50,9 +52,6 @@ doit <- function(l){
         W = rep(1,n)
       }
     }
-    ##Result
-    w = W/sum(W)
-    x.estimate[,j] = as.vector(w%*%as.matrix(X[,,j]))
   }
   return(list(estimate=x.estimate,rejuvs=rejuvs))
 }
@@ -62,7 +61,7 @@ res = foreach(l=1:m,.combine = rbind,
   return(doit(l))
 }
 
-load("HDM1.RData")
+load("HDM.RData")
 X = array(rep(0,m*p*length(threshold)),c(m,p,length(threshold)))
 rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
 for (i in 1:m) {
@@ -75,6 +74,7 @@ for (j in 1:length(threshold)) {
   mse[j] = sum(X[,,j]^2)
 }
 mse = mse/m
+ess = seq(.1,1,by=.1)
 plot(ess,mse,xlab="ESS Threshold",ylab="MSE")
 boxplot(X[,,5])
 
