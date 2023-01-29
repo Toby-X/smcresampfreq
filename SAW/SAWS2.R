@@ -110,6 +110,6 @@ mse = rep(0,length(threshold))
 for (j in 1:length(threshold)) {
   mse[j] = sum(X[,,,j]^2)/m
 }
-plot(mse)
+plot(ess,mse,xlab = "ESS Threshold", ylab = "MSE")
 
 save.image("/public1/home/scf0347/ResampFreq/SAW/SAWS3.RData")

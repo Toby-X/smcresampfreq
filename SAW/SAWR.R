@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 # simulate SAW using growth method for a 2D template
-t = 50 # length of SAW
+t = 10 # length of SAW
 n_particles = 200 # number of particles
 d = 2
 m = 192 # parallel experiments
@@ -51,26 +51,33 @@ doit <- function(l){
   set.seed(l)
   x.estimate = array(rep(0,t*length(threshold)*d),c(t,d,length(threshold)))
   rejuvs = rep(0,length(threshold))
+  cn = rep(1,length(threshold))
   for (j in 1:length(threshold)) {
     X = array(rep(0,n_particles*t*d),c(n_particles,t,d))
     W = rep(1/n_particles,n_particles)
+    W.count = rep(1,t)
+    W.update = rep(1,n_particles)
     for (i in 2:t) {
       for (k in 1:n_particles) {
         avail = find_next(i,as.matrix(X[k,,]))
         nt = nrow(avail)
         if (is.null(nt)){
           W[k] = W[k]
+          W.update[k] = 1
           X[k,i,] = X[k,i-1,]+avail
         }else if (nt != 0){
           W[k] = W[k] * nt
+          W.update[k] = nt
           nid = sample(1:nt,1)
           X[k,i,] = X[k,i-1,]+avail[nid,]
         }else{
           W[k] = 0
+          W.update[k] = 0
           X[k,i,] = X[k,i-1,]
         }
       }
       w = W/sum(W)
+      W.count[i] = mean(W.update)
       if (1/sum(w^2)<threshold[j]*n_particles){
         idx = resresample(w)
         X = X[idx,,]
@@ -81,8 +88,9 @@ doit <- function(l){
     w = W/sum(W)
     x.estimate[,1,j] = w%*%as.matrix(X[,,1])
     x.estimate[,2,j] = w%*%as.matrix(X[,,2])
+    cn[j] = prod(W.count)
   }
-  return(list(estimate = x.estimate, rejuvs = rejuvs))
+  return(list(estimate = x.estimate, rejuvs = rejuvs,cn=cn))
 }
 
 res = foreach(l=1:m,.combine = rbind,
@@ -91,19 +99,32 @@ res = foreach(l=1:m,.combine = rbind,
               }
 
 load("SAWR.RData")
-X = array(rep(0,m*t*d*length(threshold)),c(m,t,d,length(threshold)))
-rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
-# head(res)
-# str(res[1,]$estimate)
+# cn0 = 1.17704242*2.638^t*t^(43/32-1)
+cn0 = 44100
+cn = matrix(rep(0,m*length(threshold)),nrow=m)
 for (i in 1:m) {
-  X[i,,,] = res[i,]$estimate
-  rejuvs[i,] = res[i,]$rejuvs
+  cn[i,] = res[i,]$cn
 }
-colMeans(rejuvs)
 mse = rep(0,length(threshold))
 for (j in 1:length(threshold)) {
-  mse[j] = sum(X[,,,j]^2)/m
+  mse[j] = sum((cn[,j]-cn0)^2)
 }
 plot(mse)
+
+# load("SAWR.RData")
+# X = array(rep(0,m*t*d*length(threshold)),c(m,t,d,length(threshold)))
+# rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
+# # head(res)
+# # str(res[1,]$estimate)
+# for (i in 1:m) {
+#   X[i,,,] = res[i,]$estimate
+#   rejuvs[i,] = res[i,]$rejuvs
+# }
+# colMeans(rejuvs)
+# mse = rep(0,length(threshold))
+# for (j in 1:length(threshold)) {
+#   mse[j] = sum(X[,,,j]^2)/m
+# }
+# plot(ess,mse,xlab = "ESS Threshold", ylab = "MSE")
 
 save.image("/public1/home/scf0347/ResampFreq/SAW/SAWR.RData")

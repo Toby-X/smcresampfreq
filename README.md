@@ -1,5 +1,7 @@
 # SMC Resampling Frequency Experiments
 
+The result of each simulation is present at each folder. Gaussian Mixture for Gaussian Mixture Parameter Estimation, GMG for Gaussian Mixture Generation, HD for High Dimension Sampling, SAW for Self-avoiding Walk, Stochastic Volatility for Stochastic Volatility.
+
 Aiming to find the effect of resampling frequency on Sequential Monte Carlo (SMC) and its variations w.r.t different resampling schemes. We are now experimenting with Stochastic Vitality Model(Doucet. 2012) and Gaussian Mixture Model(Richardson and Green. 1997) with SMC and Sequential Monte Carlo Samplers (SMCS, Del Moral. 2006). 
 
 ## Gaussian Mixture Model
