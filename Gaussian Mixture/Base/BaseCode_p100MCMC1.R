@@ -8,6 +8,7 @@ y = mixture.dat$y
 ## libraries
 library(Boom)
 
+
 ## Given Value
 n = 500
 p = 100

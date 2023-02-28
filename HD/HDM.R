@@ -61,21 +61,20 @@ res = foreach(l=1:m,.combine = rbind,
   return(doit(l))
 }
 
-load("HDM.RData")
-X = array(rep(0,m*p*length(threshold)),c(m,p,length(threshold)))
-rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
-for (i in 1:m) {
-  X[i,,] = res[i,]$estimate
-  rejuvs[i,] = res[i,]$rejuvs
-}
-colMeans(rejuvs)
-mse = rep(0,length(threshold))
-for (j in 1:length(threshold)) {
-  mse[j] = sum(X[,,j]^2)
-}
-mse = mse/m
-ess = seq(.1,1,by=.1)
-plot(ess,mse,xlab="ESS Threshold",ylab="MSE")
-boxplot(X[,,5])
+# load("HDM1.RData")
+# X = array(rep(0,m*p*length(threshold)),c(m,p,length(threshold)))
+# rejuvs = matrix(rep(0,m*length(threshold)),nrow = m)
+# for (i in 1:m) {
+#   X[i,,] = res[i,]$estimate
+#   rejuvs[i,] = res[i,]$rejuvs
+# }
+# colMeans(rejuvs)
+# mse = rep(0,length(threshold))
+# for (j in 1:length(threshold)) {
+#   mse[j] = sum(X[,,j]^2)
+# }
+# mse = mse/m
+# plot(ess,mse,xlab="ESS Threshold",ylab="MSE")
+# boxplot(X[,,5])
 
 save.image("/public1/home/scf0347/ResampFreq/HD/HDM.RData")

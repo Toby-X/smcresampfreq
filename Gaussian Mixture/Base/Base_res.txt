@@ -1,0 +1,8 @@
+
+Attaching package: ‘Boom’
+
+The following object is masked from ‘package:stats’:
+
+    rWishart
+
+[1] 0.002849794

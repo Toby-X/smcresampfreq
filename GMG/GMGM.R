@@ -59,21 +59,21 @@ res = foreach (l = 1:m,.combine = rbind,.packages = "mvtnorm") %dopar% {
   return(doit(l))
 }
 
-load("GMGM.RData")
-X = array(rep(0,m*n_dim*length(threshold)),c(m,n_dim,length(threshold)))
-rejuvs = matrix(rep(0,m*length(threshold)),nrow=m)
-for (i in 1:m){
-  X[i,,] = t(res[i,]$estimate)
-  rejuvs[i,] = res[i,]$rejuvs
-}
-colMeans(rejuvs)
-plot(X[,19,1],X[,20,1])
-mse = rep(0,length(threshold))
-for (j in 1:length(threshold)) {
-  mse[j] = sum(X[,,j]^2)
-}
-mse = mse/m
-plot(ess,mse,xlab="ESS Threshold",ylab="MSE")
+# load("GMGM.RData")
+# X = array(rep(0,m*n_dim*length(threshold)),c(m,n_dim,length(threshold)))
+# rejuvs = matrix(rep(0,m*length(threshold)),nrow=m)
+# for (i in 1:m){
+#   X[i,,] = t(res[i,]$estimate)
+#   rejuvs[i,] = res[i,]$rejuvs
+# }
+# 
+# plot(X[,19,1],X[,20,1])
+# mse = rep(0,length(threshold))
+# for (j in 1:length(threshold)) {
+#   mse[j] = sum(X[,,j]^2)
+# }
+# mse = mse/m
+# plot(mse)
 
 # mse = matrix(rep(0,m*length(threshold)),nrow = m)
 # llikelihood = matrix(rep(0,m*length(threshold)),nrow = m)

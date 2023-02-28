@@ -1,0 +1,10 @@
+
+Attaching package: ‘Boom’
+
+The following object is masked from ‘package:stats’:
+
+    rWishart
+
+Error in if (1/sum(w_n^2) < threshold) { : 
+  missing value where TRUE/FALSE needed
+Execution halted

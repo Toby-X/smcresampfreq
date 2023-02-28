@@ -107,19 +107,19 @@ doit <- function(l){
 
 res = foreach (l = 1:p,.combine = rbind,.packages = "Boom",
                .options.snow=opts) %dopar% {
-                 return(doit(l))
+                 return(doit(2*l))
                }
 close(pb)
 
-load("SVSO.RData")
-mse = matrix(rep(0,p*length(threshold)),nrow=p)
-rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
-for (i in 1:p) {
-  mse[i,] = res[i,]$mse
-  rejuvs[i,] = res[i,]$rejuvs
-}
-mse.mean = colMeans(mse)
-rejuvs.mean = colMeans(rejuvs)
-plot(ess, mse.mean,ylab="MSE",xlab="ESS Threshold")
+# load("SVSO.RData")
+# mse = matrix(rep(0,p*length(threshold)),nrow=p)
+# rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
+# for (i in 1:p) {
+#   mse[i,] = res[i,]$mse
+#   rejuvs[i,] = res[i,]$rejuvs
+# }
+# mse.mean = colMeans(mse)
+# rejuvs.mean = colMeans(rejuvs)
+# plot(threshold, mse.mean,ylab="MSE",xlab="ESS Threshold")
 
-save.image("/public1/home/scf0347/ResampFreq/SV/SVSO.RData")
+save.image("/public1/home/scf0347/ResampFreq/SV/SVSO1.RData")

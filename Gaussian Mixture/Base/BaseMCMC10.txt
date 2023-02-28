@@ -1,0 +1,8 @@
+
+Attaching package: ‘Boom’
+
+The following object is masked from ‘package:stats’:
+
+    rWishart
+
+There were 50 or more warnings (use warnings() to see the first 50)

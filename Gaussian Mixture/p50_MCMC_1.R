@@ -36,7 +36,7 @@ delta = 1
 ## lambda via multiplicative log-normal random-walk
 ## omega via additive normal random-walk
 log.likelihood <- function(mu,lambda,omega){
-  sum(log(omega[1]*dnorm(y,mu[1],lambda^(-1/2))+omega[2]*dnorm(y,mu[2],lambda^(-1/2))))
+  sum(log(omega[1]*dnorm(y,mu[1],lambda[1]^(-1/2))+omega[2]*dnorm(y,mu[2],lambda[2]^(-1/2))))
 }
 
 ## using one iteration of MH kernel

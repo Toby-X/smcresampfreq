@@ -252,7 +252,7 @@ mu7 = c(mu[!idx1,50,1],mu[!idx2,50,2])
 
 omega10 = c(omega[idx1,50,1],omega[idx2,50,2])
 omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
-#hist(omega10)
+# hist(omega10)
 # hist(omega7)
 #omega_all = c(omega10,omega7)
 #hist(omega_all)

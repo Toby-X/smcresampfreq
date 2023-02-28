@@ -9,4 +9,4 @@
 source /public1/soft/modules/module.sh
 module load anaconda
 source activate R4.2.2
-Rscript /public1/home/scf0347/ResampFreq/GaussianMixture/Base/BaseCode_0.4.R
+Rscript /public1/home/scf0347/ResampFreq/GaussianMixture/Base/BaseCode.R

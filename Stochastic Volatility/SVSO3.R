@@ -111,16 +111,16 @@ res = foreach (l = 1:p,.combine = rbind,.packages = "Boom",
                }
 close(pb)
 
-load("SVSO3.RData")
-mse = matrix(rep(0,p*length(threshold)),nrow=p)
-rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
-for (i in 1:p) {
-  mse[i,] = res[i,]$mse
-  rejuvs[i,] = res[i,]$rejuvs
-}
-mse.mean = colMeans(mse)
-rejuvs.mean = colMeans(rejuvs)
-ess = seq(0.1,1,by=.1)
-plot(ess, mse.mean,ylab="MSE",xlab="ESS Threshold")
+# load("SVSO2.RData")
+# mse = matrix(rep(0,p*length(threshold)),nrow=p)
+# rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
+# for (i in 1:p) {
+#   mse[i,] = res[i,]$mse
+#   rejuvs[i,] = res[i,]$rejuvs
+# }
+# mse.mean = colMeans(mse)
+# rejuvs.mean = colMeans(rejuvs)
+# ess = seq(0.1,1,by=.1)
+# plot(ess, mse.mean,ylab="MSE",xlab="ESS Threshold")
 
 save.image("/public1/home/scf0347/ResampFreq/SV/SVSO3.RData")

@@ -98,7 +98,7 @@ doit <- function(l){
           idx = sample(1:n,n,prob = w, replace = T)
           X = X[idx,]
           W = rep(1/n,n)
-          rejuvs[j] = rejuvs[j]+1
+          rejuvs[j] = rejuvs+1
         }
       }
     }
@@ -133,6 +133,3 @@ mse.mean = colMeans(mse)
 rejuvs.mean = colMeans(rejuvs)
 
 save.image("/public1/home/scf0347/ResampFreq/SV/SVMP.RData")
-load("SVMP.RData")
-ess = seq(0.1,1,by=0.1)
-plot(ess, mse.mean, xlab = "ESS Threshold",ylab="MSE")

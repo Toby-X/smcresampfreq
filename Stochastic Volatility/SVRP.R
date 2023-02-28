@@ -113,7 +113,7 @@ doit <- function(l){
           idx = resresample(w)
           X = X[idx,]
           W = rep(1/n,n)
-          rejuvs[j] = rejuvs[j]+1
+          rejuvs[j] = rejuvs+1
         }
       }
     }
@@ -137,16 +137,5 @@ res = foreach (l = 1:p,.combine = rbind,.packages = "Boom",
                  return(doit(l))
                }
 close(pb)
-
-load("SVRP.RData")
-mse = matrix(rep(0,p*length(threshold)),nrow=p)
-rejuvs = matrix(rep(0,p*length(threshold)),nrow=p)
-for (i in 1:p) {
-  mse[i,] = res[i,]$mse
-  rejuvs[i,] = res[i,]$rejuvs
-}
-mse.mean = colMeans(mse)
-rejuvs.mean = colMeans(rejuvs)
-plot(ess, mse.mean,ylab="MSE",xlab="ESS Threshold")
 
 save.image("/public1/home/scf0347/ResampFreq/SV/SVRP.RData")

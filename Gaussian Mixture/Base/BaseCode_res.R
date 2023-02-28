@@ -231,7 +231,7 @@ idx1 = mu[,50,1]>8
 idx2 = mu[,50,2]>8
 mu10 = c(mu[idx1,50,1],mu[idx2,50,2])
 mu7 = c(mu[!idx1,50,1],mu[!idx2,50,2])
-#(mean(mu7)-7)^2+var(mu7)
+(mean(mu7)-7)^2+var(mu7)
 #str(mu7)
 #str(mu10)
 #hist(mu7)
@@ -253,7 +253,7 @@ omega7 = c(omega[!idx1,50,1],omega[!idx2,50,2])
 #mean(rowSums(ac.omega))
 
 lambda_all = c(lambda[,50,1],lambda[,50,2])
- # hist(lambda_all)
+# hist(lambda_all)
 # mean(lambda_all)
 
 #mean(lambda_all)
